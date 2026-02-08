@@ -3,6 +3,7 @@ import { triageIssue } from "../services/triageService.js";
 import { generateKnowledgeArticle } from "../services/kbGenerator.js";
 import { findRelevantKB } from "../services/ragService.js";
 import { saveGeneratedKB } from "../services/learningService.js";
+import { suggestForAgent } from "../services/copilotService.js";
 
 const router = express.Router();
 
@@ -73,6 +74,34 @@ export default function analyzeRoute(dataset) {
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Analysis failed" });
+    }
+  });
+
+  // Live Agent Copilot: suggest best-practice answers in real time
+  router.post("/copilot/suggest", async (req, res) => {
+    try {
+      const { query } = req.body;
+
+      if (!query || typeof query !== "string") {
+        return res.status(400).json({ error: "Query is required and must be a string" });
+      }
+
+      const suggestions = await suggestForAgent(query, dataset);
+
+      res.json({
+        query,
+        suggestions: suggestions.map(kb => ({
+          KB_Article_ID: kb.KB_Article_ID,
+          Title: kb.Title || kb.title,
+          Summary: kb.ProblemSummary || kb.problemSummary || kb.Summary,
+          ResolutionSteps: kb.ResolutionSteps || kb.resolutionSteps || kb.Resolution,
+          Source: kb.source || "unknown",
+          Relevance: Math.round((kb.relevanceScore || 0) * 100)
+        }))
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Copilot suggestion failed" });
     }
   });
 
