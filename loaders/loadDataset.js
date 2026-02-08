@@ -3,24 +3,20 @@ import path from "path";
 
 const filePath = path.join("data", "SupportMind__Final_Data.xlsx");
 
+function safeSheet(workbook, name) {
+  const sheet = workbook.Sheets[name];
+  if (!sheet) return [];
+  return xlsx.utils.sheet_to_json(sheet);
+}
+
 export function loadDataset() {
   const workbook = xlsx.readFile(filePath);
 
-  const Conversations = xlsx.utils.sheet_to_json(
-    workbook.Sheets["Conversations"]
-  );
-
-  const Tickets = xlsx.utils.sheet_to_json(
-    workbook.Sheets["Tickets"]
-  );
-
-  const KnowledgeArticles = xlsx.utils.sheet_to_json(
-    workbook.Sheets["Knowledge_Articles"]
-  );
-
   return {
-    Conversations,
-    Tickets,
-    KnowledgeArticles
+    Conversations: safeSheet(workbook, "Conversations"),
+    Tickets: safeSheet(workbook, "Tickets"),
+    KnowledgeArticles: safeSheet(workbook, "Knowledge_Articles"),
+    ScriptsMaster: safeSheet(workbook, "Scripts_Master"),
+    KBLineageSeed: safeSheet(workbook, "KB_Lineage")
   };
 }

@@ -16,9 +16,19 @@ function scoreRelevance(query, candidate) {
 }
 
 export async function suggestForAgent(query, dataset = {}) {
-  // retrieve from seed KB
-  const seedKB = findRelevantKB(dataset.KnowledgeArticles || [], query);
-  const seedResults = seedKB ? [seedKB] : [];
+  const seedArticles = dataset.KnowledgeArticles || [];
+  // Score seed KB by relevance (word overlap) so we get results for normal queries
+  let seedResults = seedArticles
+    .map(kb => ({ ...kb, relevanceScore: scoreRelevance(query, kb) }))
+    .filter(kb => kb.relevanceScore > 0)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, 3)
+    .map(kb => ({ ...kb, source: "seed" }));
+  // Fallback: if no scored match, use strict title-in-query match (legacy)
+  if (seedResults.length === 0) {
+    const legacySeed = findRelevantKB(seedArticles, query);
+    if (legacySeed) seedResults = [{ ...legacySeed, source: "seed", relevanceScore: 1.0 }];
+  }
 
   // retrieve from generated KB
   let generatedResults = [];
@@ -38,15 +48,8 @@ export async function suggestForAgent(query, dataset = {}) {
 
   // combine and rank
   const allResults = [
-    ...seedResults.map(kb => ({
-      ...kb,
-      source: "seed",
-      relevanceScore: 1.0
-    })),
-    ...generatedResults.map(kb => ({
-      ...kb,
-      source: "generated"
-    }))
+    ...seedResults,
+    ...generatedResults.map(kb => ({ ...kb, source: "generated" }))
   ];
 
   // deduplicate and sort

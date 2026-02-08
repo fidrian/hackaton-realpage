@@ -1,14 +1,4 @@
-import OpenAI from "openai";
-
-function getOpenAIClient() {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) {
-    throw new Error(
-      "OPENAI_API_KEY is not set. Add it to your environment or a .env file."
-    );
-  }
-  return new OpenAI({ apiKey: key });
-}
+import { getOpenAIClient } from "./openaiClient.js";
 
 export async function triageIssue({ transcript, ticket, kbCandidate }) {
   const openai = getOpenAIClient();
@@ -34,8 +24,16 @@ Return JSON only.
 
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }]
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" }
   });
 
-  return JSON.parse(res.choices[0].message.content);
+  const raw = res.choices[0]?.message?.content?.trim() || "";
+  const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    console.error("Triage JSON parse failed. Raw:", raw.slice(0, 500));
+    throw new Error(`Triage response was not valid JSON: ${e.message}`);
+  }
 }
