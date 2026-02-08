@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-5100}:5100"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5100
+    volumes:
+      # Persist generated KB if needed
+      - ./data/generated_kb:/app/data/generated_kb
